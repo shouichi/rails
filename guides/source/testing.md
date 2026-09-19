@@ -2543,17 +2543,10 @@ class ActionDispatch::IntegrationTest
 end
 ```
 
-If you're using [parallel tests][] and the Disk service, you can configure
-each process to use its own folder for Active Storage. This way, the `teardown`
-callback will only delete files from the relevant process' tests.
-
-```ruby
-class ActionDispatch::IntegrationTest
-  parallelize_setup do |i|
-    ActiveStorage::Blob.service.root = "#{ActiveStorage::Blob.service.root}-#{i}"
-  end
-end
-```
+If you're using [parallel tests][], each process automatically gets its own
+folder for every Disk service: the configured `root` is suffixed with the
+worker number. Only Disk services are isolated this way; other services are
+shared between processes.
 
 If your tests verify the deletion of a model with attachments and you're
 using Active Job, you will need to set your test environment to use the inline
@@ -2913,9 +2906,18 @@ databases will be suffixed with the number corresponding to the worker. For
 example, if you have 2 workers the tests will create `test-database-0` and
 `test-database-1` respectively.
 
+Likewise, Active Storage gives each process its own folder for every `Disk`
+service. The configured `root` is suffixed with the worker number, so with 2
+workers files are stored under `tmp/storage_0` and `tmp/storage_1`. Other
+services are not affected.
+
+NOTE: Files uploaded before the processes are forked, for example while
+`test_helper.rb` loads, stay in the original `root` and are not visible to the
+workers.
+
 If the number of workers passed is 1 or fewer the processes will not be forked
 and the tests will not be parallelized and they will use the original
-`test-database` database.
+`test-database` database and the original Active Storage `root`.
 
 Two hooks are provided, one runs when the process is forked, and one runs before
 the forked process is closed. These can be useful if your app uses multiple

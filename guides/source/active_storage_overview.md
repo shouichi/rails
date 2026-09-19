@@ -1218,6 +1218,10 @@ local:
   root: <%= Rails.root.join("storage") %>
 ```
 
+When tests run in [parallel processes](testing.html#parallel-testing-with-processes),
+each worker stores its files in its own folder: `root` suffixed with the worker
+number, for example `storage_0`.
+
 ### S3 Service (Amazon S3 and S3-compatible APIs)
 
 Active Storage’s built-in S3 service adapter relies on the official AWS SDK to

@@ -199,7 +199,7 @@ module ActiveStorage
     end
 
     initializer "active_storage.services" do |app|
-      ActiveSupport.on_load(:active_storage_blob) do
+      configure_services = proc do
         configs = app.config.active_storage.service_configurations ||=
           begin
             config_file = Rails.root.join("config/storage/#{Rails.env}.yml")
@@ -213,6 +213,25 @@ module ActiveStorage
 
         if config_choice = app.config.active_storage.service
           ActiveStorage::Blob.service = ActiveStorage::Blob.services.fetch(config_choice)
+        end
+      end
+
+      ActiveSupport.on_load(:active_storage_blob, &configure_services)
+
+      ActiveSupport.on_load(:active_support_test_case) do
+        ActiveSupport::Testing::Parallelization.after_fork_hook do |worker|
+          ActiveSupport.on_load(:active_storage_blob, run_once: true) do
+            configs = app.config.active_storage.service_configurations.with_indifferent_access
+
+            configs.each_value do |config|
+              next unless config[:service].to_s.camelize == "Disk" && config[:root].present?
+
+              config[:root] = "#{config[:root]}_#{worker}"
+            end
+
+            app.config.active_storage.service_configurations = configs
+            configure_services.call
+          end
         end
       end
     end
